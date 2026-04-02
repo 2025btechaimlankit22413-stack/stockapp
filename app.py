@@ -125,7 +125,7 @@ future_predictions = []
 current_input = last_price
 
 for i in range(future_days):
-    pred = model.predict([[current_input]])
+    pred = model.predict(np.array([[float(current_input)]]))
     future_predictions.append(pred[0])
     current_input = pred[0]
 
