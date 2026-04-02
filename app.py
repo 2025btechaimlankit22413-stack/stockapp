@@ -104,14 +104,19 @@ plt.grid(alpha=0.3)
 st.pyplot(fig2)
 
 # ---------------- METRICS ----------------
-if len(df) > 1:
-    previous_price = float(df['Close'].iloc[-2])
-    change = current_price - previous_price
-    percent = (change / previous_price) * 100
+close_data = df['Close'].dropna()
+
+if len(close_data) >= 2:
+    try:
+        previous_price = float(close_data.iloc[-2])
+        change = current_price - previous_price
+        percent = (change / previous_price) * 100
+    except:
+        change = 0
+        percent = 0
 else:
     change = 0
     percent = 0
-
 col1, col2 = st.columns(2)
 
 with col1:
