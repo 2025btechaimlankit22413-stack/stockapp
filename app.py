@@ -6,7 +6,7 @@ import streamlit as st
 
 from sklearn.linear_model import LinearRegression
 
-# ---------------- FIX 1 (TOP PE RAKHO) ----------------
+# ---------------- FIX 1 ----------------
 st.set_page_config(layout="wide")
 
 start = '2010-01-01'
@@ -63,7 +63,7 @@ model.fit(X, y)
 # ---------------- TEST ----------------
 y_predicted = model.predict(X)
 
-# ---------------- LIVE PRICE (SAFE) ----------------
+# ---------------- CURRENT PRICE ----------------
 try:
     current_price = float(df['Close'].dropna().iloc[-1])
 except:
@@ -76,9 +76,7 @@ st.subheader('Predictions vs Original + Live')
 fig2 = plt.figure(figsize=(12,6))
 plt.plot(y, label='Original', linewidth=2)
 plt.plot(y_predicted, label='Predicted', linewidth=2)
-
 plt.axhline(y=current_price, linestyle='--', label='Live Price')
-
 plt.grid(alpha=0.3)
 plt.legend()
 st.pyplot(fig2)
@@ -93,7 +91,7 @@ days = st.sidebar.slider("Future Days", 10, 100, 10)
 
 st.line_chart(df['Close'])
 
-# ---------------- METRICS (FIXED) ----------------
+# ---------------- METRICS ----------------
 if len(df['Close'].dropna()) >= 2:
     try:
         previous_price = float(df['Close'].dropna().iloc[-2])
@@ -121,25 +119,29 @@ future_days = days
 last_price = df['Close'].iloc[-1]
 
 future_predictions = []
-
-current_input = last_price
+current_input = float(last_price)
 
 for i in range(future_days):
+    if np.isnan(current_input):
+        break
+    
     pred = model.predict(np.array([[float(current_input)]]))
-    future_predictions.append(pred[0])
-    current_input = pred[0]
+    pred_value = float(pred[0])
+
+    future_predictions.append(pred_value)
+    current_input = pred_value
 
 future_predictions = np.array(future_predictions)
 
 from datetime import datetime
-dates = pd.bdate_range(start=datetime.now(), periods=future_days)
+dates = pd.bdate_range(start=datetime.now(), periods=len(future_predictions))
 
 future_df = pd.DataFrame({
     "Date": dates,
     "Predicted Price": future_predictions
 })
 
-st.subheader(f"📅 Next {future_days} Days Prediction")
+st.subheader(f"📅 Next {len(future_predictions)} Days Prediction")
 st.write(future_df)
 
 # ---------------- FUTURE GRAPH ----------------
