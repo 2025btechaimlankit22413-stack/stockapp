@@ -138,7 +138,17 @@ future_predictions = []
 current_input = last_price
 
 for i in range(future_days):
-    pred = model.predict([[current_input]])[0]
+   value = float(current_input)
+
+if not np.isfinite(value):
+    break
+
+input_array = np.array([[value]], dtype=np.float64)
+
+pred = model.predict(input_array)[0]
+
+if not np.isfinite(pred):
+    break
     future_predictions.append(pred)
     current_input = pred
 
