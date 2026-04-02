@@ -15,17 +15,16 @@ user_input = st.text_input('Enter Stock Ticker', 'AAPL')
 # ---------------- DATA ----------------
 df = yf.download(user_input, start='2010-01-01', end='2026-03-26', progress=False)
 
-# HARD SAFETY CHECK
 if df is None or df.empty or 'Close' not in df.columns:
-    st.error("❌ Data load failed. Try another ticker.")
+    st.error("❌ Data load failed")
     st.stop()
 
 df = df[['Close']].copy()
 df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
-df = df.dropna()
+df.dropna(inplace=True)
 
 if len(df) < 10:
-    st.error("❌ Not enough valid data.")
+    st.error("❌ Not enough data")
     st.stop()
 
 # ---------------- CHART ----------------
@@ -36,19 +35,10 @@ st.pyplot(fig)
 
 # ---------------- MODEL ----------------
 df['Prediction'] = df['Close'].shift(-1)
-df = df.dropna()
+df.dropna(inplace=True)
 
 X = df[['Close']].values.astype(float)
 y = df['Prediction'].values.astype(float)
-
-# FINAL SAFETY (important)
-mask = np.isfinite(X.flatten()) & np.isfinite(y)
-X = X[mask]
-y = y[mask]
-
-if len(X) < 5:
-    st.error("❌ Clean data too small.")
-    st.stop()
 
 model = LinearRegression()
 model.fit(X, y)
@@ -58,48 +48,65 @@ current_price = float(df['Close'].iloc[-1])
 
 st.success(f"Current Price: ${current_price:.2f}")
 
-# ---------------- FUTURE PREDICTION ----------------
-st.subheader("🔮 Future Prediction")
+# ---------------- SIDEBAR ----------------
+future_days = st.slider("Future Days", 5, 30, 10)
 
-future_days = st.slider("Days", 5, 30, 10)
+# ---------------- FUTURE PREDICTION (SAFE LOOP) ----------------
+st.subheader("🔮 Future Prediction")
 
 future_predictions = []
 current_input = float(current_price)
 
 for i in range(future_days):
 
-    # FULL SAFETY BLOCK
-    if not np.isfinite(current_input):
-        break
-
     try:
-        input_array = np.array([[current_input]], dtype=np.float64)
+        # ensure scalar float
+        value = float(current_input)
 
-        # FINAL CHECK
-        if not np.isfinite(input_array).all():
+        # check valid number
+        if not np.isfinite(value):
             break
 
+        # correct shape
+        input_array = np.array([[value]], dtype=np.float64)
+
+        # predict
         pred = model.predict(input_array)
-
-        if not np.isfinite(pred).all():
-            break
 
         pred_value = float(pred[0])
 
+        # check valid output
+        if not np.isfinite(pred_value):
+            break
+
         future_predictions.append(pred_value)
+
+        # update input
         current_input = pred_value
 
     except Exception as e:
-        st.error(f"Prediction stopped: {e}")
+        st.error(f"Stopped at step {i}: {e}")
         break
 
 # ---------------- OUTPUT ----------------
 if len(future_predictions) == 0:
-    st.warning("⚠️ No predictions generated.")
+    st.warning("⚠️ Prediction failed")
 else:
     st.write(future_predictions)
 
+    # graph
     fig2 = plt.figure(figsize=(12,6))
-    plt.plot(future_predictions)
-    plt.title("Future Prediction")
+    plt.plot(future_predictions, label='Future')
+    plt.legend()
     st.pyplot(fig2)
+
+    # dataframe
+    from datetime import datetime
+    dates = pd.bdate_range(start=datetime.now(), periods=len(future_predictions))
+
+    future_df = pd.DataFrame({
+        "Date": dates,
+        "Predicted Price": future_predictions
+    })
+
+    st.write(future_df)
