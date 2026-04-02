@@ -134,24 +134,32 @@ st.subheader('🔮 Future Predictions')
 
 last_price = df['Close'].iloc[-1]
 future_predictions = []
+current_input = float(current_price)
 
-current_input = last_price
+for i in range(future_days):   # ✅ loop start
 
-for i in range(future_days):
-   value = float(current_input)
+    try:
+        value = float(current_input)
 
-if not np.isfinite(value):
-    break
+        if not np.isfinite(value):
+            break   # ✅ ab loop ke andar hai
 
-input_array = np.array([[value]], dtype=np.float64)
+        input_array = np.array([[value]], dtype=np.float64)
 
-pred = model.predict(input_array)[0]
+        pred = model.predict(input_array)[0]
 
-if not np.isfinite(pred):
-    break
-    future_predictions.append(pred)
-    current_input = pred
+        if not np.isfinite(pred):
+            break   # ✅ safe
 
+        future_predictions.append(pred)
+        current_input = pred
+
+    except Exception as e:
+        st.error(f"Stopped at step {i}")
+        break   # ✅ loop ke andar
+
+# ✅ loop ke baad
+st.write(future_predictions)
 # ---------------- FUTURE DATAFRAME ----------------
 from datetime import datetime
 
