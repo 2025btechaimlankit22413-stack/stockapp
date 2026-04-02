@@ -19,11 +19,20 @@ start = '2010-01-01'
 end = '2026-03-26'
 
 # ---------------- DATA FETCH ----------------
-@st.cache_data
 def load_data(ticker):
-    return yf.download(ticker, start=start, end=end, progress=False)
+    try:
+        data = yf.download(ticker, start=start, end=end, progress=False)
+        if data is None or data.empty:
+            return None
+        return data
+    except:
+        return None
 
 df = load_data(user_input)
+
+if df is None:
+    st.error("❌ Invalid ticker OR network issue.\n\n👉 Try: AAPL, TSLA, RELIANCE.NS")
+    st.stop()
 
 # ---------------- CHECK DATA ----------------
 if df is None or df.empty:
