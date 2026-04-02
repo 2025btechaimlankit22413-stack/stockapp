@@ -118,6 +118,10 @@ close_data = df['Close'].dropna()
 
 if len(close_data) >= 2:
     try:
+        close_data = df['Close'].dropna()
+
+if len(close_data) >= 2:
+    try:
         previous_price = float(close_data.iloc[-2])
         change = current_price - previous_price
         percent = (change / previous_price) * 100
