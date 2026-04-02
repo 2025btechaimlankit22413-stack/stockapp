@@ -116,14 +116,13 @@ st.pyplot(fig2)
 # ---------------- METRICS ----------------
 close_data = df['Close'].dropna()
 
-try:
-    if len(close_data) >= 2:
-        previous_price = float(close_data.iloc[-2])
-        change = current_price - previous_price
-        percent = (change / previous_price) * 100
-    else:
-        change = 0
-        percent = 0
+if len(close_data) >= 2:
+    previous_price = float(close_data.iloc[-2])
+    change = current_price - previous_price
+    percent = (change / previous_price) * 100
+else:
+    change = 0
+    percent = 0
 
 except:
     change = 0
