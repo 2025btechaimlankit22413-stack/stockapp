@@ -1,26 +1,4 @@
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import yfinance as yf
-import streamlit as st
-from sklearn.linear_model import LinearRegression
-
-# ---------------- PAGE CONFIG ----------------
-st.set_page_config(layout="wide")
-
-# ---------------- TITLE ----------------
-st.title('📈 Stock Trend Prediction')
-
-# ---------------- INPUT ----------------
-user_input = st.text_input('Enter Stock Ticker', 'AAPL')
-
-start = '2010-01-01'
-end = '2026-03-26'
-
-# ---------------- DATA FETCH ----------------
-df = yf.download(user_input, start=start, end=end, progress=False)
-
-# ---------------- DATA CHECK ----------------
+HECK ----------------
 if df is None or df.empty or 'Close' not in df.columns:
     st.error("❌ No valid data found. Check ticker.")
     st.stop()
