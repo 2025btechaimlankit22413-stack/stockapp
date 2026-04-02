@@ -21,7 +21,7 @@ end = '2026-03-26'
 # ---------------- DATA FETCH ----------------
 def load_data(ticker):
     try:
-        data = yf.history(ticker, start=start, end=end, progress=False)
+        data = yf.download(ticker, start=start, end=end, progress=False)
         if data is None or data.empty:
             return None
         return data
