@@ -57,11 +57,11 @@ y_predicted = model.predict(X)
 # ---------------- LIVE PRICE ----------------
 df_live = yf.download(user_input, period="5y")
 
-if not df_live.empty:
+if not df_live.empty and 'Close' in df_live.columns:
     current_price = float(df_live['Close'].iloc[-1])
 else:
     current_price = 0
-
+    st.error("⚠️ Failed to fetch stock data. Check ticker symbol.")
 # ---------------- GRAPH ----------------
 st.subheader('Predictions vs Original + Live')
 
