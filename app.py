@@ -87,10 +87,20 @@ y_pred = model.predict(X)
 
 # ---------------- CURRENT PRICE ----------------
 try:
-    current_price = float(df['Close'].dropna().iloc[-1])
+    # 🔥 Live data fetch (NEW)
+    stock = yf.Ticker(user_input)
+    live_data = stock.history(period="1d")
+
+    if live_data is not None and not live_data.empty:
+        current_price = float(live_data['Close'].iloc[-1])
+    else:
+        # fallback
+        current_price = float(df['Close'].dropna().iloc[-1])
+        st.warning("⚠️ Live data unavailable, showing last known price")
+
 except:
-    current_price = 0
-    st.warning("⚠️ Could not fetch current price.")
+    current_price = float(df['Close'].dropna().iloc[-1])
+    st.warning("⚠️ Error fetching live price, using last known price")
 
 # ---------------- GRAPH ----------------
 st.subheader('📈 Prediction vs Actual')
