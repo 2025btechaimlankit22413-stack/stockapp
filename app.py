@@ -169,7 +169,7 @@ for i in range(future_days):   # ✅ loop start
         break   # ✅ loop ke andar
 
 # ✅ loop ke baad
-st.write(future_predictions)
+
 # ---------------- FUTURE DATAFRAME ----------------
 from datetime import datetime
 
