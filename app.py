@@ -1,105 +1,89 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import yfinance as yf 
+import yfinance as yf
 import streamlit as st
-
 from sklearn.linear_model import LinearRegression
 
-# ---------------- FIX 1 ----------------
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(layout="wide")
+
+# ---------------- INPUT ----------------
+st.title('📈 Stock Trend Prediction')
+user_input = st.text_input('Enter Stock Ticker', 'AAPL')
 
 start = '2010-01-01'
 end = '2026-03-26'
 
-st.title('📈 Stock Trend Prediction')
-
-user_input = st.text_input('Enter Stock Ticker', 'AAPL')
-df = yf.download(user_input, start=start, end=end)
+# ---------------- DATA FETCH ----------------
+df = yf.download(user_input, start=start, end=end, progress=False)
 
 # ---------------- DATA CHECK ----------------
-if df is None or df.empty:
-    st.error("⚠️ No data found. Check ticker.")
+if df is None or df.empty or 'Close' not in df.columns:
+    st.error("⚠️ No valid data found. Check ticker.")
+    st.stop()
+
+# ---------------- CLEAN DATA ----------------
+df = df[['Close']].copy()
+df.dropna(inplace=True)
+
+if len(df) < 5:
+    st.error("⚠️ Not enough data.")
     st.stop()
 
 # ---------------- DATA ----------------
-st.subheader('Data from 2010-2026')
+st.subheader('Data Summary')
 st.write(df.describe())
 
-# ---------------- CHARTS ----------------
-st.subheader('Closing Price vs Time chart')
+# ---------------- CHART ----------------
+st.subheader('Closing Price')
 fig = plt.figure(figsize=(12,6))
-plt.plot(df.Close)
+plt.plot(df['Close'])
 st.pyplot(fig)
 
-st.subheader('Closing Price vs Time chart with 100MA')
-ma100 = df.Close.rolling(100).mean()
+# ---------------- MA ----------------
+ma100 = df['Close'].rolling(100).mean()
+ma200 = df['Close'].rolling(200).mean()
+
 fig = plt.figure(figsize=(12,6))
-plt.plot(ma100)
-plt.plot(df.Close)
+plt.plot(df['Close'], label='Close')
+plt.plot(ma100, label='MA100')
+plt.plot(ma200, label='MA200')
+plt.legend()
 st.pyplot(fig)
 
-st.subheader('Closing Price vs Time chart with 100MA & 200MA')
-ma100 = df.Close.rolling(100).mean()
-ma200 = df.Close.rolling(200).mean()
-fig = plt.figure(figsize=(12,6))
-plt.plot(ma100, 'r')
-plt.plot(ma200, 'g')
-plt.plot(df.Close, 'b')
-st.pyplot(fig)
-
-# ---------------- PREPARE DATA ----------------
-df = df[['Close']].copy()
+# ---------------- MODEL DATA ----------------
 df['Prediction'] = df['Close'].shift(-1)
 df.dropna(inplace=True)
 
-X = np.array(df[['Close']])
-y = np.array(df['Prediction'])
+X = np.array(df[['Close']], dtype=float)
+y = np.array(df['Prediction'], dtype=float)
 
-# ---------------- TRAIN MODEL ----------------
+# ---------------- TRAIN ----------------
 model = LinearRegression()
 model.fit(X, y)
 
-# ---------------- TEST ----------------
-y_predicted = model.predict(X)
+# ---------------- PREDICT ----------------
+y_pred = model.predict(X)
 
 # ---------------- CURRENT PRICE ----------------
-try:
-    current_price = float(df['Close'].dropna().iloc[-1])
-except:
-    current_price = 0
-    st.error("⚠️ Failed to fetch current price")
+current_price = float(df['Close'].iloc[-1])
 
 # ---------------- GRAPH ----------------
-st.subheader('Predictions vs Original + Live')
+st.subheader('Prediction vs Actual')
 
 fig2 = plt.figure(figsize=(12,6))
-plt.plot(y, label='Original', linewidth=2)
-plt.plot(y_predicted, label='Predicted', linewidth=2)
-plt.axhline(y=current_price, linestyle='--', label='Live Price')
-plt.grid(alpha=0.3)
+plt.plot(y, label='Actual')
+plt.plot(y_pred, label='Predicted')
+plt.axhline(y=current_price, linestyle='--', label='Current')
 plt.legend()
 st.pyplot(fig2)
 
-# ---------------- LIVE PRICE DISPLAY ----------------
-st.subheader("📍 Current Live Price")
-st.success(f"$ {current_price:.2f}")
-
-# ---------------- SIDEBAR ----------------
-st.sidebar.title("FILTER 📈 ")
-days = st.sidebar.slider("Future Days", 10, 100, 10)
-
-st.line_chart(df['Close'])
-
 # ---------------- METRICS ----------------
-if len(df['Close'].dropna()) >= 2:
-    try:
-        previous_price = float(df['Close'].dropna().iloc[-2])
-        change = current_price - previous_price
-        percent = (change / previous_price) * 100
-    except:
-        change = 0
-        percent = 0
+if len(df) >= 2:
+    previous_price = float(df['Close'].iloc[-2])
+    change = current_price - previous_price
+    percent = (change / previous_price) * 100
 else:
     change = 0
     percent = 0
@@ -112,28 +96,38 @@ with col1:
 with col2:
     st.metric("Change", f"{change:.2f}", f"{percent:.2f}%")
 
+# ---------------- SIDEBAR ----------------
+st.sidebar.title("Settings")
+future_days = st.sidebar.slider("Future Days", 5, 50, 10)
+
 # ---------------- FUTURE PREDICTION ----------------
-st.subheader('🔮 Future Predictions')
+st.subheader('🔮 Future Prediction')
 
-future_days = days
-last_price = df['Close'].iloc[-1]
-
+last_price = float(df['Close'].iloc[-1])
 future_predictions = []
-current_input = float(last_price)
+
+current_input = last_price
 
 for i in range(future_days):
-    if np.isnan(current_input):
+    # SAFE CONVERSION
+    if not np.isfinite(current_input):
         break
-    
-    pred = model.predict(np.array([[float(current_input)]]))
+
+    input_array = np.array([[float(current_input)]], dtype=float)
+
+    pred = model.predict(input_array)
+
+    if not np.isfinite(pred[0]):
+        break
+
     pred_value = float(pred[0])
 
     future_predictions.append(pred_value)
     current_input = pred_value
 
-future_predictions = np.array(future_predictions)
-
+# ---------------- FUTURE DATA ----------------
 from datetime import datetime
+
 dates = pd.bdate_range(start=datetime.now(), periods=len(future_predictions))
 
 future_df = pd.DataFrame({
@@ -141,11 +135,10 @@ future_df = pd.DataFrame({
     "Predicted Price": future_predictions
 })
 
-st.subheader(f"📅 Next {len(future_predictions)} Days Prediction")
 st.write(future_df)
 
 # ---------------- FUTURE GRAPH ----------------
 fig3 = plt.figure(figsize=(12,6))
-plt.plot(future_predictions, 'g', label='Future')
+plt.plot(future_predictions, label='Future')
 plt.legend()
 st.pyplot(fig3)
