@@ -5,108 +5,108 @@ import yfinance as yf
 import streamlit as st
 from sklearn.linear_model import LinearRegression
 
-# ---------------- CONFIG ----------------
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(layout="wide")
 
+# ---------------- TITLE ----------------
 st.title('📈 Stock Trend Prediction')
 
+# ---------------- INPUT ----------------
 user_input = st.text_input('Enter Stock Ticker', 'AAPL')
 
-# ---------------- DATA ----------------
-df = yf.download(user_input, start='2010-01-01', end='2026-03-26', progress=False)
+start = '2010-01-01'
+end = '2026-03-26'
 
+# ---------------- DATA FETCH ----------------
+df = yf.download(user_input, start=start, end=end, progress=False)
+
+# ---------------- DATA CHECK ----------------
 if df is None or df.empty or 'Close' not in df.columns:
-    st.error("❌ Data load failed")
+    st.error("❌ No valid data found. Check ticker.")
     st.stop()
 
+# ---------------- CLEAN DATA ----------------
 df = df[['Close']].copy()
 df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
 df.dropna(inplace=True)
 
 if len(df) < 10:
-    st.error("❌ Not enough data")
+    st.error("❌ Not enough data.")
     st.stop()
 
+# ---------------- DATA INFO ----------------
+st.subheader('📊 Data Summary')
+st.write(df.describe())
+
 # ---------------- CHART ----------------
-st.subheader('Closing Price')
+st.subheader('📉 Closing Price')
 fig = plt.figure(figsize=(12,6))
 plt.plot(df['Close'])
+plt.title("Closing Price")
 st.pyplot(fig)
 
-# ---------------- MODEL ----------------
+# ---------------- MOVING AVERAGES ----------------
+ma100 = df['Close'].rolling(100).mean()
+ma200 = df['Close'].rolling(200).mean()
+
+st.subheader('📊 Moving Averages')
+fig = plt.figure(figsize=(12,6))
+plt.plot(df['Close'], label='Close')
+plt.plot(ma100, label='MA100')
+plt.plot(ma200, label='MA200')
+plt.legend()
+st.pyplot(fig)
+
+# ---------------- MODEL DATA ----------------
 df['Prediction'] = df['Close'].shift(-1)
 df.dropna(inplace=True)
 
 X = df[['Close']].values.astype(float)
 y = df['Prediction'].values.astype(float)
 
+# ---------------- TRAIN MODEL ----------------
 model = LinearRegression()
 model.fit(X, y)
 
+# ---------------- PREDICTION ----------------
+y_pred = model.predict(X)
+
+# ---------------- GRAPH ----------------
+st.subheader('📈 Prediction vs Actual')
+
+fig2 = plt.figure(figsize=(12,6))
+plt.plot(y, label='Actual')
+plt.plot(y_pred, label='Predicted')
+plt.legend()
+st.pyplot(fig2)
+
 # ---------------- CURRENT PRICE ----------------
 current_price = float(df['Close'].iloc[-1])
+st.subheader("📍 Current Price")
+st.success(f"${current_price:.2f}")
 
-st.success(f"Current Price: ${current_price:.2f}")
-
-# ---------------- SIDEBAR ----------------
-future_days = st.slider("Future Days", 5, 30, 10)
-
-# ---------------- FUTURE PREDICTION (SAFE LOOP) ----------------
-st.subheader("🔮 Future Prediction")
-
-future_predictions = []
-current_input = float(current_price)
-
-for i in range(future_days):
-
-    try:
-        # ensure scalar float
-        value = float(current_input)
-
-        # check valid number
-        if not np.isfinite(value):
-            break
-
-        # correct shape
-        input_array = np.array([[value]], dtype=np.float64)
-
-        # predict
-        pred = model.predict(input_array)
-
-        pred_value = float(pred[0])
-
-        # check valid output
-        if not np.isfinite(pred_value):
-            break
-
-        future_predictions.append(pred_value)
-
-        # update input
-        current_input = pred_value
-
-    except Exception as e:
-        st.error(f"Stopped at step {i}: {e}")
-        break
-
-# ---------------- OUTPUT ----------------
-if len(future_predictions) == 0:
-    st.warning("⚠️ Prediction failed")
+# ---------------- METRICS ----------------
+if len(df) >= 2:
+    previous_price = float(df['Close'].iloc[-2])
+    change = current_price - previous_price
+    percent = (change / previous_price) * 100
 else:
-    st.write(future_predictions)
+    change = 0
+    percent = 0
 
-    # graph
-    fig2 = plt.figure(figsize=(12,6))
-    plt.plot(future_predictions, label='Future')
-    plt.legend()
-    st.pyplot(fig2)
+col1, col2 = st.columns(2)
 
-    # dataframe
-    from datetime import datetime
-    dates = pd.bdate_range(start=datetime.now(), periods=len(future_predictions))
+with col1:
+    st.metric("Price", f"${current_price:.2f}")
 
-    future_df = pd.DataFrame({
-        "Date": dates,
-        "Predicted Price": future_predictions
-    })
+with col2:
+    st.metric("Change", f"{change:.2f}", f"{percent:.2f}%")
 
-    st.write(future_df)
+# ---------------- SAFE PREDICTION ----------------
+st.subheader("🔮 Next Day Prediction")
+
+try:
+    next_day = model.predict(np.array([[current_price]]))[0]
+    st.success(f"Predicted Next Day Price: ${float(next_day):.2f}")
+except:
+    st.error("Prediction failed")
